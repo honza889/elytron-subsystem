@@ -7,5 +7,9 @@
         <filesystem-realm name="FilesystemRealm" levels="2">
             <file path="filesystem-realm" relative-to="jboss.server.config.dir" />
         </filesystem-realm>
+        <ldap-realm name="LdapRealm">
+            <dir-context url="ldap://localhost:11391/" principal="uid=server,dc=elytron,dc=wildfly,dc=org" credential="serverPassword"/>
+            <identity-mapping rdn-identifier="uid" search-base-dn="dc=elytron,dc=wildfly,dc=org" use-recursive-search="true"/>
+        </ldap-realm>
     </security-realms>
 </subsystem>
