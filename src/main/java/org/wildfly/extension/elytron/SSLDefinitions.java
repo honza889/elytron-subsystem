@@ -74,6 +74,8 @@ import org.jboss.msc.service.StartException;
 import org.jboss.msc.value.InjectedValue;
 import org.wildfly.extension.elytron.TrivialService.ValueSupplier;
 import org.wildfly.security.auth.server.SecurityDomain;
+import org.wildfly.security.keystore.AliasFilter;
+import org.wildfly.security.keystore.FilteringKeyStore;
 import org.wildfly.security.ssl.CipherSuiteSelector;
 import org.wildfly.security.ssl.Protocol;
 import org.wildfly.security.ssl.ProtocolSelector;
@@ -107,6 +109,12 @@ class SSLDefinitions {
             .build();
 
     static final SimpleAttributeDefinition KEYSTORE = new SimpleAttributeDefinitionBuilder(ElytronDescriptionConstants.KEY_STORE, ModelType.STRING, false)
+            .setAllowExpression(true)
+            .setMinSize(1)
+            .setFlags(AttributeAccess.Flag.RESTART_RESOURCE_SERVICES)
+            .build();
+
+    static final SimpleAttributeDefinition ALIAS_FILTER = new SimpleAttributeDefinitionBuilder(ElytronDescriptionConstants.ALIAS_FILTER, ModelType.STRING, true)
             .setAllowExpression(true)
             .setMinSize(1)
             .setFlags(AttributeAccess.Flag.RESTART_RESOURCE_SERVICES)
@@ -211,7 +219,7 @@ class SSLDefinitions {
                 .setCapabilityReference(KEY_STORE_CAPABILITY, KEY_MANAGERS_CAPABILITY, true)
                 .build();
 
-        AttributeDefinition[] attributes = new AttributeDefinition[] { ALGORITHM, providerLoaderDefinition, PROVIDER, keystoreDefinition, KEY_PASSWORD};
+        AttributeDefinition[] attributes = new AttributeDefinition[] { ALGORITHM, providerLoaderDefinition, PROVIDER, keystoreDefinition, ALIAS_FILTER, KEY_PASSWORD };
 
         AbstractAddStepHandler add = new TrivialAddHandler<KeyManager[]>(KeyManager[].class, attributes, KEY_MANAGERS_RUNTIME_CAPABILITY) {
 
@@ -219,6 +227,7 @@ class SSLDefinitions {
             protected ValueSupplier<KeyManager[]> getValueSupplier(ServiceBuilder<KeyManager[]> serviceBuilder, OperationContext context, ModelNode model) throws OperationFailedException {
                 final String algorithm = ALGORITHM.resolveModelAttribute(context, model).asString();
                 final String provider = PROVIDER.resolveModelAttribute(context, model).isDefined() ? PROVIDER.resolveModelAttribute(context, model).asString() : null;
+                final String aliasFilter = asStringIfDefined(context, ALIAS_FILTER, model);
                 final String password = asStringIfDefined(context, KEY_PASSWORD, model);
 
                 String providerLoader = asStringIfDefined(context, providerLoaderDefinition, model);
@@ -229,11 +238,11 @@ class SSLDefinitions {
                             Provider[].class, providersInjector);
                 }
 
-                String keyStore = asStringIfDefined(context, keystoreDefinition, model);
+                String keyStoreName = asStringIfDefined(context, keystoreDefinition, model);
                 final InjectedValue<KeyStore> keyStoreInjector = new InjectedValue<>();
-                if (keyStore != null) {
+                if (keyStoreName != null) {
                     serviceBuilder.addDependency(context.getCapabilityServiceName(
-                            buildDynamicCapabilityName(KEY_STORE_CAPABILITY, keyStore), KeyStore.class),
+                            buildDynamicCapabilityName(KEY_STORE_CAPABILITY, keyStoreName), KeyStore.class),
                             KeyStore.class, keyStoreInjector);
                 }
 
@@ -261,8 +270,17 @@ class SSLDefinitions {
                         }
                     }
 
+                    KeyStore keyStore = keyStoreInjector.getOptionalValue();
+                    if (aliasFilter != null) {
+                        try {
+                            keyStore = FilteringKeyStore.filteringKeyStore(keyStore, AliasFilter.fromString(aliasFilter));
+                        } catch (Exception e) {
+                            throw new StartException(e);
+                        }
+                    }
+
                     try {
-                        keyManagerFactory.init(keyStoreInjector.getOptionalValue(), password != null ? password.toCharArray() : null);
+                        keyManagerFactory.init(keyStore, password != null ? password.toCharArray() : null);
                     } catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
                         throw new StartException(e);
                     }

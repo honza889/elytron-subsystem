@@ -15,6 +15,10 @@
                 <file path="localhost.keystore" relative-to="jboss.server.config.dir"/>
                 <credential-reference clear-text="Elytron"/>
             </key-store>
+            <key-store name="LocalhostFireflyKeystore" type="JKS">
+                <file path="localhostfirefly.keystore" relative-to="jboss.server.config.dir"/>
+                <credential-reference clear-text="Elytron"/>
+            </key-store>
             <key-store name="ElytronCaTruststore" type="JKS">
                 <file path="target/test-classes/org/wildfly/extension/elytron/ca.truststore"/>
                 <credential-reference clear-text="Elytron"/>
@@ -25,6 +29,7 @@
             <key-manager name="ServerKeyManager" algorithm="SunX509" key-store="LocalhostKeystore" key-password="Elytron"/>
             <key-manager name="ClientKeyManager" algorithm="SunX509" key-store="FireflyKeystore" key-password="Elytron"/>
             <key-manager name="MyKeyManager" algorithm="SunX509" key-store="FireflyKeystore" key-password="Elytron" provider-loader="ManagerProviderLoader" provider="SunJSSE"/>
+            <key-manager name="SelectingKeyManager" algorithm="SunX509" key-store="LocalhostFireflyKeystore" key-password="Elytron" alias-filter="NONE:+firefly"/>
         </key-managers>
         <trust-managers>
             <trust-manager name="CaTrustManager" algorithm="SunX509" key-store="ElytronCaTruststore"/>
@@ -34,6 +39,7 @@
             <server-ssl-context name="ServerSslContextNoAuth" key-managers="ServerKeyManager" trust-managers="CaTrustManager"/>
             <server-ssl-context name="ServerSslContextAuth" protocols="TLSv1_3 TLSv1_2 TLSv1_1" key-managers="ServerKeyManager" trust-managers="CaTrustManager"
                                 want-client-auth="true" need-client-auth="true" authentication-optional="false" use-cipher-suites-order="false"/>
+            <server-ssl-context name="ServerSslContextSelecting" key-managers="SelectingKeyManager" trust-managers="CaTrustManager"/>
         </server-ssl-contexts>
         <client-ssl-contexts>
             <client-ssl-context name="ClientSslContextNoAuth" trust-managers="CaTrustManager" />

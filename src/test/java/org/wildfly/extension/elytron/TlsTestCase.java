@@ -98,6 +98,20 @@ public class TlsTestCase extends AbstractSubsystemTest {
         testCommunication(listeningSocket, serverSocket, clientSocket, "OU=Elytron,O=Elytron,C=UK,ST=Elytron,CN=Firefly", "");
     }
 
+    @Test
+    public void testKeySelection() throws Throwable {
+        SSLServerSocketFactory serverSocketFactory = getSslContext("ServerSslContextSelecting").getServerSocketFactory();
+        SSLSocketFactory clientSocketFactory = getSslContext("ClientSslContextNoAuth").getSocketFactory();
+
+        ServerSocket listeningSocket = serverSocketFactory.createServerSocket();
+        listeningSocket.bind(new InetSocketAddress("localhost", TESTING_PORT));
+        SSLSocket clientSocket = (SSLSocket) clientSocketFactory.createSocket("localhost", TESTING_PORT);
+        SSLSocket serverSocket = (SSLSocket) listeningSocket.accept();
+
+        // if the filtering does not work, "localhost" is used - filtering should force "firefly"
+        testCommunication(listeningSocket, serverSocket, clientSocket, "OU=Elytron,O=Elytron,C=UK,ST=Elytron,CN=Firefly", null);
+    }
+
     private SSLContext getSslContext(String contextName) {
         ServiceName serviceName = Capabilities.SSL_CONTEXT_RUNTIME_CAPABILITY.getCapabilityServiceName(contextName);
         SSLContext sslContext = (SSLContext) services.getContainer().getService(serviceName).getValue();
