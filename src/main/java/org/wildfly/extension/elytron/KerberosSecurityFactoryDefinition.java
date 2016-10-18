@@ -18,6 +18,9 @@
 package org.wildfly.extension.elytron;
 
 import static org.wildfly.extension.elytron.Capabilities.SECURITY_FACTORY_CREDENTIAL_RUNTIME_CAPABILITY;
+import static org.wildfly.extension.elytron.ElytronDescriptionConstants.KEY;
+import static org.wildfly.extension.elytron.ElytronDescriptionConstants.OPTION;
+import static org.wildfly.extension.elytron.ElytronDescriptionConstants.VALUE;
 import static org.wildfly.extension.elytron.ElytronExtension.asStringIfDefined;
 import static org.wildfly.extension.elytron.FileAttributeDefinitions.RELATIVE_TO;
 import static org.wildfly.extension.elytron.FileAttributeDefinitions.pathName;
@@ -25,24 +28,29 @@ import static org.wildfly.extension.elytron.FileAttributeDefinitions.pathResolve
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
 import org.ietf.jgss.Oid;
 import org.jboss.as.controller.AttributeDefinition;
+import org.jboss.as.controller.AttributeMarshaller;
 import org.jboss.as.controller.OperationContext;
 import org.jboss.as.controller.OperationFailedException;
 import org.jboss.as.controller.ResourceDefinition;
 import org.jboss.as.controller.SimpleAttributeDefinition;
 import org.jboss.as.controller.SimpleAttributeDefinitionBuilder;
+import org.jboss.as.controller.SimpleMapAttributeDefinition;
 import org.jboss.as.controller.StringListAttributeDefinition;
 import org.jboss.as.controller.registry.AttributeAccess;
 import org.jboss.as.controller.services.path.PathManager;
 import org.jboss.as.controller.services.path.PathManagerService;
 import org.jboss.dmr.ModelNode;
 import org.jboss.dmr.ModelType;
+import org.jboss.dmr.Property;
 import org.jboss.msc.service.ServiceBuilder;
 import org.jboss.msc.service.StartException;
 import org.jboss.msc.value.InjectedValue;
@@ -50,6 +58,9 @@ import org.wildfly.extension.elytron.FileAttributeDefinitions.PathResolver;
 import org.wildfly.extension.elytron.TrivialService.ValueSupplier;
 import org.wildfly.security.SecurityFactory;
 import org.wildfly.security.auth.util.GSSCredentialSecurityFactory;
+
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 /**
  * Factory class for the Kerberos security factory resource.
@@ -99,8 +110,27 @@ class KerberosSecurityFactoryDefinition {
         .setFlags(AttributeAccess.Flag.RESTART_RESOURCE_SERVICES)
         .build();
 
+    static final SimpleMapAttributeDefinition OPTIONS = new SimpleMapAttributeDefinition.Builder(ElytronDescriptionConstants.OPTIONS, ModelType.STRING, true)
+            .setAttributeMarshaller(new AttributeMarshaller() {
+
+                @Override
+                public void marshallAsElement(AttributeDefinition attribute, ModelNode resourceModel, boolean marshallDefault,
+                                              XMLStreamWriter writer) throws XMLStreamException {
+                    resourceModel = resourceModel.get(attribute.getName());
+                    if (resourceModel.isDefined()) {
+                        for (ModelNode property : resourceModel.asList()) {
+                            writer.writeEmptyElement(OPTION);
+                            writer.writeAttribute(KEY, property.asProperty().getName());
+                            writer.writeAttribute(VALUE, property.asProperty().getValue().asString());
+                        }
+                    }
+                }
+
+            })
+            .build();
+
     static ResourceDefinition getKerberosSecurityFactoryDefinition() {
-        final AttributeDefinition[] attributes = new AttributeDefinition[] { PRINCIPAL, RELATIVE_TO, PATH,  MINIMUM_REMAINING_LIFETIME, REQUEST_LIFETIME, SERVER, DEBUG, MECHANISM_OIDS };
+        final AttributeDefinition[] attributes = new AttributeDefinition[] { PRINCIPAL, RELATIVE_TO, PATH,  MINIMUM_REMAINING_LIFETIME, REQUEST_LIFETIME, SERVER, DEBUG, MECHANISM_OIDS, OPTIONS};
         TrivialAddHandler<SecurityFactory> add = new TrivialAddHandler<SecurityFactory>(SecurityFactory.class, attributes, SECURITY_FACTORY_CREDENTIAL_RUNTIME_CAPABILITY) {
 
             @Override
@@ -110,7 +140,7 @@ class KerberosSecurityFactoryDefinition {
                 final int requestLifetime = REQUEST_LIFETIME.resolveModelAttribute(context, model).asInt();
                 final boolean server = SERVER.resolveModelAttribute(context, model).asBoolean();
                 final boolean debug = DEBUG.resolveModelAttribute(context, model).asBoolean();
-                final List<Oid> mechanaismOids = MECHANISM_OIDS.unwrap(context, model).stream().map(s -> {
+                final List<Oid> mechanismOids = MECHANISM_OIDS.unwrap(context, model).stream().map(s -> {
                     try {
                         return new Oid(s);
                     } catch (GSSException e) {
@@ -127,6 +157,11 @@ class KerberosSecurityFactoryDefinition {
                     serviceBuilder.addDependency(pathName(relativeTo));
                 }
 
+                final Map<String, Object> options = new HashMap<>();
+                for(Property option : OPTIONS.resolveModelAttribute(context, model).asPropertyList()) {
+                    options.put(option.getName(), option.getValue());
+                }
+
                 return () -> {
                     PathResolver pathResolver = pathResolver();
                     pathResolver.path(path);
@@ -141,8 +176,9 @@ class KerberosSecurityFactoryDefinition {
                         .setMinimumRemainingLifetime(minimumRemainingLifetime)
                         .setRequestLifetime(requestLifetime)
                         .setIsServer(server)
-                        .setDebug(debug);
-                    mechanaismOids.forEach(builder::addMechanismOid);
+                        .setDebug(debug)
+                        .setOptions(options);
+                    mechanismOids.forEach(builder::addMechanismOid);
 
                     try {
                         return builder.build();

@@ -231,6 +231,8 @@ interface ElytronDescriptionConstants {
     String OAUTH2_INTROSPECTION = "oauth2-introspection";
     String OID = "oid";
     String OTP_CREDENTIAL_MAPPER = "otp-credential-mapper";
+    String OPTION = "option";
+    String OPTIONS = "options";
     String OR = "or";
 
     String PACKET_BUFFER_SIZE = "packet-buffer-size";

@@ -31,14 +31,18 @@ import static org.wildfly.extension.elytron.ElytronDescriptionConstants.CREDENTI
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.CUSTOM_CREDENTIAL_SECURITY_FACTORY;
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.DEBUG;
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.KERBEROS_SECURITY_FACTORY;
+import static org.wildfly.extension.elytron.ElytronDescriptionConstants.KEY;
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.MECHANISM_OIDS;
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.MINIMUM_REMAINING_LIFETIME;
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.NAME;
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.PATH;
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.PRINCIPAL;
+import static org.wildfly.extension.elytron.ElytronDescriptionConstants.OPTION;
+import static org.wildfly.extension.elytron.ElytronDescriptionConstants.OPTIONS;
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.RELATIVE_TO;
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.REQUEST_LIFETIME;
 import static org.wildfly.extension.elytron.ElytronDescriptionConstants.SERVER;
+import static org.wildfly.extension.elytron.ElytronDescriptionConstants.VALUE;
 import static org.wildfly.extension.elytron.ElytronSubsystemParser.readCustomComponent;
 import static org.wildfly.extension.elytron.ElytronSubsystemParser.verifyNamespace;
 import static org.wildfly.extension.elytron.ElytronSubsystemParser.writeCustomComponent;
@@ -53,9 +57,10 @@ import javax.xml.stream.XMLStreamException;
 import org.jboss.dmr.ModelNode;
 import org.jboss.staxmapper.XMLExtendedStreamReader;
 import org.jboss.staxmapper.XMLExtendedStreamWriter;
+import org.wildfly.security.SecurityFactory;
 
 /**
- * Parser and Marshaller for {@link SecurityFactory<Credential>} resources.
+ * Parser and Marshaller for {@link SecurityFactory<org.wildfly.security.credential.Credential>} resources.
  *
  * @author <a href="mailto:darran.lofthouse@jboss.com">Darran Lofthouse</a>
  */
@@ -135,11 +140,55 @@ class CredentialSecurityFactoryParser {
             throw missingRequired(reader, requiredAttributes);
         }
 
+        while (reader.hasNext() && reader.nextTag() != END_ELEMENT) {
+            verifyNamespace(reader);
+            String localName = reader.getLocalName();
+            switch (localName) {
+                case OPTION:
+                    parseOption(add, reader);
+                    break;
+                default:
+                    throw unexpectedElement(reader);
+            }
+        }
+
         add.get(OP_ADDR).set(parentAddress).add(KERBEROS_SECURITY_FACTORY, name);
+        operations.add(add);
+    }
+
+    private static void parseOption(ModelNode addOperation, XMLExtendedStreamReader reader) throws XMLStreamException {
+        Set<String> requiredAttributes = new HashSet<String>(Arrays.asList(new String[] { KEY, VALUE }));
+        String key = null;
+        String value = null;
+
+        final int count = reader.getAttributeCount();
+        for (int i = 0; i < count; i++) {
+            final String attributeValue = reader.getAttributeValue(i);
+            if (!isNoNamespaceAttribute(reader, i)) {
+                throw unexpectedAttribute(reader, i);
+            } else {
+                String attribute = reader.getAttributeLocalName(i);
+                requiredAttributes.remove(attribute);
+                switch (attribute) {
+                    case KEY:
+                        key = attributeValue;
+                        break;
+                    case VALUE:
+                        value = attributeValue;
+                        break;
+                    default:
+                        throw unexpectedAttribute(reader, i);
+                }
+            }
+        }
+
+        if (requiredAttributes.isEmpty() == false) {
+            throw missingRequired(reader, requiredAttributes);
+        }
 
         requireNoContent(reader);
 
-        operations.add(add);
+        addOperation.get(OPTIONS).add(key, new ModelNode(value));
     }
 
     private void startCredentialSecurityFactories(boolean started, XMLExtendedStreamWriter writer) throws XMLStreamException {
@@ -148,7 +197,7 @@ class CredentialSecurityFactoryParser {
         }
     }
 
-    private boolean writeCustomCredenitalSecurityFactories(boolean started, ModelNode subsystem, XMLExtendedStreamWriter writer) throws XMLStreamException {
+    private boolean writeCustomCredentialSecurityFactories(boolean started, ModelNode subsystem, XMLExtendedStreamWriter writer) throws XMLStreamException {
         if (subsystem.hasDefined(CUSTOM_CREDENTIAL_SECURITY_FACTORY)) {
             startCredentialSecurityFactories(started, writer);
             ModelNode securityFactories = subsystem.require(CUSTOM_CREDENTIAL_SECURITY_FACTORY);
@@ -181,7 +230,7 @@ class CredentialSecurityFactoryParser {
                 KerberosSecurityFactoryDefinition.SERVER.marshallAsAttribute(factory, false, writer);
                 KerberosSecurityFactoryDefinition.DEBUG.marshallAsAttribute(factory, false, writer);
                 KerberosSecurityFactoryDefinition.MECHANISM_OIDS.getAttributeMarshaller().marshallAsAttribute(KerberosSecurityFactoryDefinition.MECHANISM_OIDS, factory, false, writer);
-
+                KerberosSecurityFactoryDefinition.OPTIONS.marshallAsElement(factory, writer);
                 writer.writeEndElement();
             }
             return true;
@@ -192,7 +241,7 @@ class CredentialSecurityFactoryParser {
     void writeCredentialSecurityFactories(ModelNode subsystem, XMLExtendedStreamWriter writer) throws XMLStreamException {
         boolean credentialSecurityFactoriesStarted = false;
 
-        credentialSecurityFactoriesStarted = credentialSecurityFactoriesStarted | writeCustomCredenitalSecurityFactories(credentialSecurityFactoriesStarted, subsystem, writer);
+        credentialSecurityFactoriesStarted = credentialSecurityFactoriesStarted | writeCustomCredentialSecurityFactories(credentialSecurityFactoriesStarted, subsystem, writer);
         credentialSecurityFactoriesStarted = credentialSecurityFactoriesStarted | writeKerberosSecurityFactories(credentialSecurityFactoriesStarted, subsystem, writer);
 
         if (credentialSecurityFactoriesStarted) {
