@@ -34,7 +34,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 
 class TestEnvironment extends AdditionalInitialization {
 
-    static final int LDAP_PORT = 11391;
+    static final int LDAPS_PORT = 11391;
+    static final int KERBEROS_PORT = 11398;
 
     @Override
     protected ControllerInitializer createControllerInitializer() {
@@ -64,7 +65,8 @@ class TestEnvironment extends AdditionalInitialization {
                     .createDirectoryService("Test Service")
                     .addPartition("Elytron", "dc=elytron,dc=wildfly,dc=org", 5, "uid")
                     .importLdif(TestEnvironment.class.getResourceAsStream("ldap.ldif"))
-                    .addTcpServer("Default TCP", "localhost", LDAP_PORT, "localhost.keystore", "Elytron")
+                    .addLdapsServer("Ldaps", "localhost", LDAPS_PORT, "localhost.keystore", "Elytron")
+                    .addKerberosServer("Kerberos", "localhost", KERBEROS_PORT)
                     .start();
         } catch (Exception e) {
             throw new RuntimeException("Could not start LDAP embedded server.", e);

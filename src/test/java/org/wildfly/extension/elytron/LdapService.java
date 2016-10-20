@@ -37,7 +37,9 @@ import org.apache.directory.server.core.api.partition.Partition;
 import org.apache.directory.server.core.factory.DefaultDirectoryServiceFactory;
 import org.apache.directory.server.core.factory.DirectoryServiceFactory;
 import org.apache.directory.server.core.factory.PartitionFactory;
+import org.apache.directory.server.kerberos.kdc.KdcServer;
 import org.apache.directory.server.ldap.LdapServer;
+import org.apache.directory.server.protocol.shared.DirectoryBackedService;
 import org.apache.directory.server.protocol.shared.transport.TcpTransport;
 import org.apache.directory.server.protocol.shared.transport.Transport;
 
@@ -49,19 +51,19 @@ import org.apache.directory.server.protocol.shared.transport.Transport;
 public class LdapService implements Closeable {
 
     private final DirectoryService directoryService;
-    private final Collection<LdapServer> servers;
+    private final Collection<DirectoryBackedService> servers;
 
-    private LdapService(final DirectoryService directoryService, final Collection<LdapServer> servers) {
+    private LdapService(final DirectoryService directoryService, final Collection<DirectoryBackedService> servers) {
         this.directoryService = directoryService;
         this.servers = servers;
     }
 
     @Override
     public void close() throws IOException {
-        for (LdapServer current : servers) {
-            current.stop();
-        }
         try {
+            for (DirectoryBackedService current : servers) {
+                current.stop();
+            }
             directoryService.shutdown();
         } catch (Exception e) {
             throw new IOException("Unable to shut down DirectoryService", e);
@@ -78,7 +80,7 @@ public class LdapService implements Closeable {
         private File workingDir = null;
         private DirectoryServiceFactory directoryServiceFactory;
         private DirectoryService directoryService;
-        private List<LdapServer> servers = new LinkedList<LdapServer>();
+        private List<DirectoryBackedService> servers = new LinkedList<>();
 
         Builder() {
         }
@@ -176,16 +178,16 @@ public class LdapService implements Closeable {
         }
 
         /**
-         * Adds a TCP server to the directory service.
+         * Adds a LDAPS TCP server to the directory service.
          *
-         * Note: The TCP server is not started until start() is called on this Builder.
+         * Note: The LDAPS TCP server is not started until start() is called on this Builder.
          *
          * @param serviceName - The name of this server.
          * @param hostName - The host name to listen on.
          * @param port - The port to listen on.
          * @return This Builder for subsequent changes.
          */
-        public Builder addTcpServer(final String serviceName, final String hostName, final int port, final String keyStore, final String keyStorePassword) throws URISyntaxException {
+        public Builder addLdapsServer(final String serviceName, final String hostName, final int port, final String keyStore, final String keyStorePassword) throws URISyntaxException {
             assertNotStarted();
             if (directoryService == null) {
                 throw new IllegalStateException("The Directory service has not been created.");
@@ -204,11 +206,26 @@ public class LdapService implements Closeable {
             return this;
         }
 
+        public Builder addKerberosServer(final String serviceName, final String hostName, final int port) {
+            assertNotStarted();
+            if (directoryService == null) {
+                throw new IllegalStateException("The Directory service has not been created.");
+            }
+
+            KdcServer server = new KdcServer();
+            server.setServiceName(serviceName);
+            server.addTransports(new TcpTransport( hostName, port, 3, 5 ));
+            server.setDirectoryService(directoryService);
+            servers.add(server);
+
+            return this;
+        }
+
         public LdapService start() throws Exception {
             assertNotStarted();
             started = true;
 
-            for (LdapServer current : servers) {
+            for (DirectoryBackedService current : servers) {
                 current.start();
             }
 

@@ -1,5 +1,6 @@
 package org.wildfly.extension.elytron;
 
+import org.ietf.jgss.GSSCredential;
 import org.jboss.as.controller.client.helpers.ClientConstants;
 import org.jboss.as.subsystem.test.AbstractSubsystemTest;
 import org.jboss.as.subsystem.test.KernelServices;
@@ -11,8 +12,14 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.wildfly.common.function.ExceptionSupplier;
+import org.wildfly.security.SecurityFactory;
+import org.wildfly.security.auth.server.HttpAuthenticationFactory;
 import org.wildfly.security.auth.server.ModifiableSecurityRealm;
 import org.wildfly.security.auth.server.RealmIdentity;
+import org.wildfly.security.credential.GSSCredentialCredential;
+import org.wildfly.security.http.HttpServerAuthenticationMechanism;
+import org.wildfly.security.http.HttpServerAuthenticationMechanismFactory;
+import sun.security.krb5.Config;
 
 import javax.naming.NamingException;
 import javax.naming.directory.DirContext;
@@ -206,6 +213,30 @@ public class LdapTestCase extends AbstractSubsystemTest {
         assertSuccess(services.executeOperation(operation)).get(ClientConstants.RESULT);
         Assert.assertNull(keyStore.getKey("serenity2", "password2".toCharArray()));
         Assert.assertEquals(1, keyStore.size());
+    }
+
+    @Test
+    public void testKerberosSecurityFactory() throws Exception {
+        ServiceName serviceName = Capabilities.SECURITY_FACTORY_CREDENTIAL_RUNTIME_CAPABILITY.getCapabilityServiceName("KerberosFactory");
+        SecurityFactory<GSSCredentialCredential> factory = (SecurityFactory) services.getContainer().getService(serviceName).getValue();
+        Assert.assertNotNull(factory);
+
+        GSSCredentialCredential gcc = factory.create();
+        GSSCredential gc = gcc.getGssCredential();
+        Assert.assertNotNull(gc);
+        //Config config = Config.getInstance();
+    }
+
+    @Test
+    public void testSpnegoSecurityFactory() throws Exception {
+        ServiceName serviceName = Capabilities.HTTP_AUTHENTICATION_FACTORY_RUNTIME_CAPABILITY.getCapabilityServiceName("SpnegoHttpAuthFactory");
+        HttpAuthenticationFactory factory = (HttpAuthenticationFactory) services.getContainer().getService(serviceName).getValue();
+        HttpServerAuthenticationMechanism mech = factory.createMechanism("SPNEGO");
+
+        Assert.assertNotNull(factory);
+        Assert.assertNotNull(mech);
+
+        mech.evaluateRequest(null);
     }
 
     private ModelNode assertSuccess(ModelNode response) {

@@ -25,7 +25,9 @@ import static org.wildfly.extension.elytron.FileAttributeDefinitions.pathResolve
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.ietf.jgss.GSSCredential;
@@ -110,7 +112,7 @@ class KerberosSecurityFactoryDefinition {
                 final int requestLifetime = REQUEST_LIFETIME.resolveModelAttribute(context, model).asInt();
                 final boolean server = SERVER.resolveModelAttribute(context, model).asBoolean();
                 final boolean debug = DEBUG.resolveModelAttribute(context, model).asBoolean();
-                final List<Oid> mechanaismOids = MECHANISM_OIDS.unwrap(context, model).stream().map(s -> {
+                final List<Oid> mechanismOids = MECHANISM_OIDS.unwrap(context, model).stream().map(s -> {
                     try {
                         return new Oid(s);
                     } catch (GSSException e) {
@@ -135,14 +137,18 @@ class KerberosSecurityFactoryDefinition {
                     }
                     File resolvedPath = pathResolver.resolve();
 
+                    Map<String, Object> options = new HashMap<>();
+                    options.put("refreshKrb5Config", "true");
+
                     GSSCredentialSecurityFactory.Builder builder =  GSSCredentialSecurityFactory.builder()
                         .setPrincipal(principal)
                         .setKeyTab(resolvedPath)
                         .setMinimumRemainingLifetime(minimumRemainingLifetime)
                         .setRequestLifetime(requestLifetime)
                         .setIsServer(server)
-                        .setDebug(debug);
-                    mechanaismOids.forEach(builder::addMechanismOid);
+                        .setDebug(debug)
+                        .setOptions(options);
+                    mechanismOids.forEach(builder::addMechanismOid);
 
                     try {
                         return builder.build();

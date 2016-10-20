@@ -1,6 +1,12 @@
 <!-- for needs of LdapTestCase -->
 <subsystem xmlns="urn:wildfly:elytron:1.0">
 
+    <security-domains>
+        <security-domain name="domain1" default-realm="LdapRealm" permission-mapper="constant-permissions">
+            <realm name="LdapRealm"/>
+        </security-domain>
+    </security-domains>
+
     <dir-contexts>
         <dir-context name="DirContextInsecure" url="ldap://localhost:11391/" authentication-level="none"/>
         <dir-context name="DirContextSsl" url="ldaps://localhost:11391/" principal="uid=server,dc=elytron,dc=wildfly,dc=org" credential="serverPassword" ssl-context="LdapSslContext"/>
@@ -26,6 +32,10 @@
             </identity-mapping>
         </ldap-realm>
     </security-realms>
+
+    <credential-security-factories>
+        <kerberos-security-factory name="KerberosFactory" principal="HTTP/localhost@EXAMPLE.COM" path="http.keytab" relative-to="jboss.server.config.dir" debug="true" mechanism-oids="1.2.840.113554.1.2.2 1.3.6.1.5.5.2"/>
+    </credential-security-factories>
 
     <tls>
         <key-stores>
@@ -53,5 +63,22 @@
             <client-ssl-context name="LdapSslContext" protocols="SSLv2 SSLv3 TLSv1 TLSv1_3 TLSv1_2 TLSv1_1" trust-managers="ElytronTrustManager" />
         </client-ssl-contexts>
     </tls>
+
+    <mappers>
+        <constant-permission-mapper name="constant-permissions">
+            <permission class-name="org.wildfly.security.auth.permission.LoginPermission"/>
+        </constant-permission-mapper>
+    </mappers>
+
+    <http>
+        <http-authentication-factory name="SpnegoHttpAuthFactory" http-server-mechanism-factory="global" security-domain="domain1">
+            <mechanism-configuration>
+                <mechanism mechanism-name="SPNEGO" credential-security-factory="KerberosFactory">
+                    <mechanism-realm realm-name="httpRealm1"/>
+                </mechanism>
+            </mechanism-configuration>
+        </http-authentication-factory>
+        <provider-http-server-mechanism-factory name="global"/>
+    </http>
 
 </subsystem>
