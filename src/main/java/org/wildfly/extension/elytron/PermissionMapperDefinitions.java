@@ -56,6 +56,7 @@ import org.wildfly.extension.elytron.TrivialService.ValueSupplier;
 import org.wildfly.extension.elytron._private.ElytronSubsystemMessages;
 import org.wildfly.security.authz.PermissionMapper;
 import org.wildfly.security.authz.SimplePermissionMapper;
+import org.wildfly.security.permission.InvalidNamedArgumentException;
 import org.wildfly.security.permission.PermissionUtil;
 import org.wildfly.security.permission.PermissionVerifier;
 
@@ -258,6 +259,13 @@ class PermissionMapperDefinitions {
         ClassLoader classLoader = currentModule != null ? currentModule.getClassLoader() : PermissionMapperDefinitions.class.getClassLoader();
         try {
             return PermissionUtil.createPermission(classLoader, permission.getClassName(), permission.getTargetName(), permission.getAction());
+        } catch (InvalidNamedArgumentException e) {
+            if ("name".equals(e.getName())) {
+                throw ElytronSubsystemMessages.ROOT_LOGGER.argumentRequiredForGivenPermission(ElytronDescriptionConstants.TARGET_NAME, permission.getClassName());
+            } else if ("actions".equals(e.getName())) {
+                throw ElytronSubsystemMessages.ROOT_LOGGER.argumentRequiredForGivenPermission(ElytronDescriptionConstants.ACTION, permission.getClassName());
+            }
+            throw ElytronSubsystemMessages.ROOT_LOGGER.exceptionWhileCreatingPermission(permission.getClassName(), e);
         } catch (Throwable e) {
             throw ElytronSubsystemMessages.ROOT_LOGGER.exceptionWhileCreatingPermission(permission.getClassName(), e);
         }

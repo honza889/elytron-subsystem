@@ -263,6 +263,9 @@ public interface ElytronSubsystemMessages extends BasicLogger {
     @Message(id = 26, value = "trusted-security-domains cannot contain the security-domain \"%s\" itself")
     OperationFailedException trustedDomainsCannotContainDomainItself(String domain);
 
+    @Message(id = 27, value = "Argument [%s] required for permission [%s]")
+    StartException argumentRequiredForGivenPermission(String argument, String permissionClassName);
+
     // CREDENTIAL_STORE section
     @Message(id = 909, value = "Credential store '%s' does not support given credential store entry type '%s'")
     IllegalArgumentException credentialStoreEntryTypeNotSupported(String credentialStoreName, String entryType);
