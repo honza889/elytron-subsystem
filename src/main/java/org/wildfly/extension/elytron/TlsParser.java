@@ -777,10 +777,7 @@ class TlsParser {
                 SSLDefinitions.KEYSTORE.marshallAsAttribute(keyManager, writer);
                 SSLDefinitions.PROVIDER_LOADER.marshallAsAttribute(keyManager, writer);
                 SSLDefinitions.PROVIDER.marshallAsAttribute(keyManager, writer);
-
-                if (keyManager.hasDefined(CredentialReference.CREDENTIAL_REFERENCE)) {
-                    CredentialReference.getAttributeDefinition().marshallAsElement(keyManager.get(CredentialReference.CREDENTIAL_REFERENCE), writer);
-                }
+                CredentialReference.getAttributeDefinition().marshallAsElement(keyManager, writer);
 
                 writer.writeEndElement();
             }
@@ -902,9 +899,8 @@ class TlsParser {
 
                         writer.writeEndElement();
                     }
-                    if (keyStore.hasDefined(CredentialReference.CREDENTIAL_REFERENCE)) {
-                        KeyStoreDefinition.CREDENTIAL_REFERENCE.marshallAsElement(keyStore.get(CredentialReference.CREDENTIAL_REFERENCE), writer);
-                    }
+
+                    KeyStoreDefinition.CREDENTIAL_REFERENCE.marshallAsElement(keyStore, writer);
 
                     writer.writeEndElement(); // end of KEY_STORE
                 }
