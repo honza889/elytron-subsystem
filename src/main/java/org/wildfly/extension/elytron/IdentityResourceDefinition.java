@@ -198,7 +198,9 @@ class IdentityResourceDefinition extends SimpleResourceDefinition {
         @Override
         OperationStepHandler getRuntimeStep() {
             return (context, operation) -> {
-                ServiceRegistry serviceRegistry = context.getServiceRegistry(false);
+                // Retrieving the modifiable registry here as the SecurityDomain is used to create a new authentication
+                // context.
+                ServiceRegistry serviceRegistry = context.getServiceRegistry(true);
                 RuntimeCapability<Void> runtimeCapability = SECURITY_DOMAIN_RUNTIME_CAPABILITY.fromBaseCapability(context.getCurrentAddressValue());
                 ServiceName domainServiceName = runtimeCapability.getCapabilityServiceName(SecurityDomain.class);
                 ServiceController<SecurityDomain> serviceController = getRequiredService(serviceRegistry, domainServiceName, SecurityDomain.class);
@@ -788,7 +790,9 @@ class IdentityResourceDefinition extends SimpleResourceDefinition {
         }
 
         private SecurityDomain getSecurityDomain(OperationContext context, ModelNode operation) {
-            ServiceRegistry serviceRegistry = context.getServiceRegistry(false);
+            // Retrieving the modifiable registry here as the SecurityDomain is used to create a new authentication
+            // context.
+            ServiceRegistry serviceRegistry = context.getServiceRegistry(true);
             ServiceController<SecurityDomain> serviceController = getRequiredService(serviceRegistry, DOMAIN_SERVICE_UTIL.serviceName(operation), SecurityDomain.class);
             Service<SecurityDomain> service = serviceController.getService();
 
