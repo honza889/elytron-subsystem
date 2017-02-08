@@ -22,7 +22,6 @@ import java.util.Set;
 import org.jboss.as.controller.AbstractAddStepHandler;
 import org.jboss.as.controller.AttributeDefinition;
 import org.jboss.as.controller.OperationContext;
-import org.jboss.as.controller.RunningMode;
 import org.jboss.as.controller.capability.RuntimeCapability;
 
 /**
@@ -72,7 +71,8 @@ class BaseAddHandler extends AbstractAddStepHandler {
      */
     @Override
     protected boolean requiresRuntime(OperationContext context) {
-        return context.isDefaultRequiresRuntime() || context.isNormalServer() && RunningMode.ADMIN_ONLY == context.getRunningMode();
+        return OperationContextHelper.requiresRuntime(context);
+        //return context.isDefaultRequiresRuntime() || context.isNormalServer() && RunningMode.ADMIN_ONLY == context.getRunningMode();
     }
 
 }

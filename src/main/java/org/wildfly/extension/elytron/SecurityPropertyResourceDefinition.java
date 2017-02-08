@@ -25,7 +25,6 @@ import org.jboss.as.controller.OperationFailedException;
 import org.jboss.as.controller.PathAddress;
 import org.jboss.as.controller.PathElement;
 import org.jboss.as.controller.ResourceDefinition;
-import org.jboss.as.controller.RunningMode;
 import org.jboss.as.controller.SimpleAttributeDefinition;
 import org.jboss.as.controller.SimpleAttributeDefinitionBuilder;
 import org.jboss.as.controller.SimpleResourceDefinition;
@@ -160,7 +159,7 @@ class SecurityPropertyResourceDefinition extends SimpleResourceDefinition {
          */
         @Override
         protected boolean requiresRuntime(OperationContext context) {
-            return context.isDefaultRequiresRuntime() || context.isNormalServer() && RunningMode.ADMIN_ONLY == context.getRunningMode();
+            return OperationContextHelper.requiresRuntime(context);
         }
 
         @Override

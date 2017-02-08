@@ -175,7 +175,7 @@ class CachingRealmDefinition extends SimpleResourceDefinition {
         }
     }
 
-    private static class ClearCacheHandler implements OperationStepHandler {
+    private static class ClearCacheHandler extends RegisterRuntimeOperationStepHandler {
 
         static void register(ManagementResourceRegistration resourceRegistration, ResourceDescriptionResolver descriptionResolver) {
             resourceRegistration.registerOperationHandler(new SimpleOperationDefinition(ElytronDescriptionConstants.CLEAR_CACHE, descriptionResolver), new CachingRealmDefinition.ClearCacheHandler());
@@ -185,16 +185,16 @@ class CachingRealmDefinition extends SimpleResourceDefinition {
         }
 
         @Override
-        public void execute(OperationContext context, ModelNode operation) throws OperationFailedException {
-            context.addStep(operation, (parentContext, parentOperation) -> {
-                ServiceRegistry serviceRegistry = context.getServiceRegistry(false);
+        OperationStepHandler getRuntimeStep() {
+            return (context, operation) -> {
+                ServiceRegistry serviceRegistry = context.getServiceRegistry(true);
                 PathAddress currentAddress = context.getCurrentAddress();
                 RuntimeCapability<Void> runtimeCapability = SECURITY_REALM_RUNTIME_CAPABILITY.fromBaseCapability(currentAddress.getLastElement().getValue());
                 ServiceName realmName = runtimeCapability.getCapabilityServiceName();
                 ServiceController<SecurityRealm> serviceController = getRequiredService(serviceRegistry, realmName, SecurityRealm.class);
                 CachingSecurityRealm securityRealm = CachingSecurityRealm.class.cast(serviceController.getValue());
                 securityRealm.removeAllFromCache();
-            }, OperationContext.Stage.RUNTIME);
+            };
         }
     }
 }
