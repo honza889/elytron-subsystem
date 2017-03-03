@@ -144,6 +144,11 @@ class CustomComponentDefinition<T> extends SimpleResourceDefinition {
                 .install();
         }
 
+        @Override
+        protected boolean requiresRuntime(OperationContext context) {
+            return false; // need to correctly load custom classes from modules?
+        }
+
         private ServiceName toServiceName(RuntimeCapability<?> runtimeCapability, String addressValue) {
             return runtimeCapability.fromBaseCapability(addressValue).getCapabilityServiceName();
         }
